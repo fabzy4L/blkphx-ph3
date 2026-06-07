@@ -801,7 +801,6 @@ function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t
 // INIT
 const sc=document.createElement('script');sc.src='https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';sc.onload=()=>{renderToday();renderDashboard();renderNutrition();};document.head.appendChild(sc);
 window.addEventListener('load',()=>{if(typeof Chart!=='undefined'){renderToday();renderDashboard();renderNutrition();}});
-if(window.location.search.includes('code=')){handleOAuthCallback().then(ok=>{if(ok){syncSettings();loadSessionsFromSheets();}});}else{loadSessionsFromSheets();}
 document.querySelectorAll('.nb')[3].addEventListener('click',()=>setTimeout(initLog,50));
 
 // ============================================================
@@ -811,6 +810,7 @@ const GOOGLE_CLIENT_ID = '188651628193-sl2m4jl10bdmdm9ctm7tgvsvidk5niab.apps.goo
 const OAUTH_WORKER_URL = 'https://blkphx-oauth.fpalvarez23.workers.dev';
 const SHEETS_ID        = '1Ehktj8QPGImsijTPnf5piutbd6G_B-PzaEB2wI1AwQg';
 const GTOKEN_KEY       = 'blkphx_gtoken';
+if(window.location.search.includes('code=')){handleOAuthCallback().then(ok=>{if(ok){syncSettings();loadSessionsFromSheets();}});}else{loadSessionsFromSheets();}
 
 // — PKCE utilities —
 function _b64url(buf){return btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');}
