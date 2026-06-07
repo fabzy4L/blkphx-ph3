@@ -540,6 +540,7 @@ select option{background:var(--s2)}
         <button class="sv" onclick="syncStatsToSheets()" style="border-color:var(--ice);color:var(--ice)">PUSH CURRENT 1RMs</button>
         <button class="sv" id="bulkSyncBtn" onclick="bulkSyncToSheets()" style="border-color:var(--gold);color:var(--gold)">BULK SYNC ALL SESSIONS</button>
         <button class="sv" onclick="loadSessionsFromSheets().then(()=>toast('✓ SESSIONS LOADED'))" style="border-color:var(--ice);color:var(--ice)">PULL FROM SHEETS</button>
+        <button class="sv" onclick="resetSheetData()" style="border-color:var(--err);color:var(--err)">RESET SHEET DATA</button>
         <button class="sv" onclick="disconnectGoogle()" style="border-color:var(--err);color:var(--err)">DISCONNECT</button>
       </div>
     </div>
@@ -549,7 +550,7 @@ select option{background:var(--s2)}
     </div>
   </div>
 
-  <div class="stg"><div class="stg-title">DATA</div><button class="sv" onclick="exportData()" style="margin-right:8px">EXPORT JSON</button><button class="sv" onclick="if(confirm('Clear ALL data?'))clearData()" style="border-color:var(--err);color:var(--err)">CLEAR ALL</button></div>
+  <div class="stg"><div class="stg-title">DATA</div><button class="sv" onclick="exportData()" style="margin-right:8px">EXPORT JSON</button><button class="sv" onclick="clearSessions()" style="border-color:var(--err);color:var(--err);margin-right:8px">CLEAR SESSIONS</button><button class="sv" onclick="if(confirm('Clear ALL data?'))clearData()" style="border-color:var(--err);color:var(--err)">CLEAR ALL</button></div>
 </div>
 </div>
 <div class="toast" id="toast"></div>
@@ -739,7 +740,7 @@ function renderDashboard(){
   document.getElementById('streakTxt').textContent=streak;
   // Recent
   const rc=document.getElementById('recList'),rec=[...S.sessions].reverse().slice(0,5);
-  rc.innerHTML=!rec.length?'<div class="empty"><div class="empty-icon">🥋</div><p>NO SESSIONS YET</p></div>':rec.map(s=>{const tags=(s.lifts||[]).slice(0,3).map(l=>{const n=l.name.toLowerCase();let col='var(--dim)';if(n.includes('squat'))col='var(--sq)';else if(n.includes('bench'))col='var(--bn)';else if(n.includes('dead'))col='var(--dl)';const top=(l.sets||[]).reduce((b,st)=>st.weight>(b.weight||0)?st:b,{});return `<span class="rc-tag" style="color:${col}">${l.name.slice(0,8)}${top.weight?' '+top.weight+'×'+top.reps:''}</span>`;}).join('');const dotC=s.type&&s.type.toLowerCase().includes('power')?'var(--sq)':'var(--ice)';const runI=s.runDist?` · 🏃${s.runDist}mi`:'';return `<div class="rc"><div class="rc-dot" style="background:${dotC}"></div><div class="rc-m"><div class="rc-t">${s.type||'Session'}</div><div class="rc-s">${s.date}${s.energy?' · E'+s.energy+'/10':''}${s.bw?' · '+s.bw+'lb':''}${runI}</div></div><div class="rc-tags">${tags}</div></div>`;}).join('');
+  rc.innerHTML=!rec.length?'<div class="empty"><div class="empty-icon">🥋</div><p>NO SESSIONS YET</p></div>':rec.map(s=>{const tags=(s.lifts||[]).slice(0,3).map(l=>{const n=l.name.toLowerCase();let col='var(--dim)';if(n.includes('squat'))col='var(--sq)';else if(n.includes('bench'))col='var(--bn)';else if(n.includes('dead'))col='var(--dl)';const top=(l.sets||[]).reduce((b,st)=>st.weight>(b.weight||0)?st:b,{});return `<span class="rc-tag" style="color:${col}">${l.name.slice(0,8)}${top.weight?' '+top.weight+'×'+top.reps:''}</span>`;}).join('');const dotC=s.type&&s.type.toLowerCase().includes('power')?'var(--sq)':'var(--ice)';const runI=s.runDist?` · 🏃${s.runDist}mi`:'';return `<div class="rc" style="display:flex;align-items:center;gap:8px"><div class="rc-dot" style="background:${dotC}"></div><div class="rc-m" style="flex:1"><div class="rc-t">${s.type||'Session'}</div><div class="rc-s">${s.date}${s.energy?' · E'+s.energy+'/10':''}${s.bw?' · '+s.bw+'lb':''}${runI}</div></div><div class="rc-tags">${tags}</div><button onclick="deleteSession(${s.id})" style="background:none;border:none;color:var(--err);font-size:16px;cursor:pointer;padding:0 4px;line-height:1;flex-shrink:0">✕</button></div>`;}).join('');
   // Badges
   const bdgs=document.querySelectorAll('#bdgRow .bdg'),n=S.sessions.length;
   if(n>=1)bdgs[0].classList.add('earned');if(streak>=7)bdgs[1].classList.add('earned');if(n>=10)bdgs[2].classList.add('earned');
@@ -974,6 +975,20 @@ function saveWorkoutWithSync(){
   toast('SESSION SAVED ✓');document.getElementById('liftEntries').innerHTML='';['logNotes','logBW','logEnergy','logRunDist','logRunTime'].forEach(id=>document.getElementById(id).value='');liftCount=0;setTimeout(()=>document.querySelectorAll('.nb')[0].click(),900);
 }
 window.saveWorkout=saveWorkoutWithSync;
+
+function deleteSession(id){if(!confirm('Delete this session?'))return;S.sessions=S.sessions.filter(s=>s.id!==id);saveS();renderToday();toast('SESSION DELETED');}
+function clearSessions(){if(!confirm('Delete all sessions from this device? Sheet data is not affected.'))return;S.sessions=[];saveS();renderToday();toast('SESSIONS CLEARED');}
+async function resetSheetData(){
+  if(!confirm('Clear all data from the sheet tabs and re-sync current sessions?'))return;
+  const tok=await getValidToken();if(!tok){toast('CONNECT GOOGLE FIRST');return;}
+  try{
+    await Promise.all(['Sessions!A2:Z','Lifts!A2:Z','Stats!A2:Z','_data!A2:Z'].map(range=>
+      fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEETS_ID}/values/${encodeURIComponent(range)}:clear`,{method:'POST',headers:{Authorization:`Bearer ${tok}`}})
+    ));
+    toast('SHEET CLEARED — SYNCING...');
+    await bulkSyncToSheets();
+  }catch(e){toast('RESET FAILED: '+e.message);}
+}
 </script>
 <script>
   if ('serviceWorker' in navigator) {
