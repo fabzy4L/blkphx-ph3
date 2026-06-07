@@ -1,0 +1,10 @@
+name = "blkphx-oauth"
+main = "index.js"
+compatibility_date = "2024-01-01"
+
+# GOOGLE_CLIENT_ID  — set as a var below after you have it from GCP
+# GOOGLE_CLIENT_SECRET — set as a secret (never commit):
+#   wrangler secret put GOOGLE_CLIENT_SECRET
+
+[vars]
+GOOGLE_CLIENT_ID = "188651628193-sl2m4jl10bdmdm9ctm7tgvsvidk5niab.apps.googleusercontent.com"

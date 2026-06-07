@@ -526,20 +526,24 @@ select option{background:var(--s2)}
   
   <div class="stg" id="stg-sheets">
     <div class="stg-title" style="color:var(--ok)">GOOGLE SHEETS SYNC</div>
-    <div style="font-family:\'Share Tech Mono\',monospace;font-size:9px;color:var(--dim);margin-bottom:12px;line-height:1.6">
-      After setting up the Apps Script (see instructions), paste your Web App URL below.<br>
-      Every session you log will automatically appear in your Google Sheet.
+    <div id="oauth-disconnected">
+      <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--dim);margin-bottom:12px;line-height:1.6">
+        Connect your Google account to sync sessions across devices.<br>
+        Data writes directly to your Sheet via the Sheets API v4.
+      </div>
+      <button class="sv" onclick="connectGoogle()" style="border-color:var(--ok);color:var(--ok)">CONNECT GOOGLE ACCOUNT</button>
     </div>
-    <div class="fg" style="margin-bottom:10px">
-      <label>Web App URL</label>
-      <input type="url" id="sheetsUrl" placeholder="https://script.google.com/macros/s/YOUR_ID/exec">
+    <div id="oauth-connected" style="display:none">
+      <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--ok);margin-bottom:12px">✓ CONNECTED — SESSIONS SYNC AUTOMATICALLY</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="sv" onclick="setupSheetTabs()" style="border-color:var(--dim);color:var(--dim)">SETUP SHEET TABS</button>
+        <button class="sv" onclick="syncStatsToSheets()" style="border-color:var(--ice);color:var(--ice)">PUSH CURRENT 1RMs</button>
+        <button class="sv" id="bulkSyncBtn" onclick="bulkSyncToSheets()" style="border-color:var(--gold);color:var(--gold)">BULK SYNC ALL SESSIONS</button>
+        <button class="sv" onclick="loadSessionsFromSheets().then(()=>toast('✓ SESSIONS LOADED'))" style="border-color:var(--ice);color:var(--ice)">PULL FROM SHEETS</button>
+        <button class="sv" onclick="disconnectGoogle()" style="border-color:var(--err);color:var(--err)">DISCONNECT</button>
+      </div>
     </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <button class="sv" onclick="saveSheetsUrl(document.getElementById(\'sheetsUrl\').value)">SAVE URL</button>
-      <button class="sv" id="testSheetsBtn" onclick="testSheetsConnection()" style="border-color:var(--ok);color:var(--ok)">TEST CONNECTION</button>
-      <button class="sv" onclick="syncStatsToSheets()" style="border-color:var(--ice);color:var(--ice)">PUSH CURRENT 1RMs</button>
-    </div>
-    <div style="font-family:\'Share Tech Mono\',monospace;font-size:8px;color:var(--dim);margin-top:12px;line-height:1.7">
+    <div style="font-family:'Share Tech Mono',monospace;font-size:8px;color:var(--dim);margin-top:12px;line-height:1.7">
       SHEET ID: 1Ehktj8QPGImsijTPnf5piutbd6G_B-PzaEB2wI1AwQg<br>
       <a href="https://docs.google.com/spreadsheets/d/1Ehktj8QPGImsijTPnf5piutbd6G_B-PzaEB2wI1AwQg/edit" target="_blank" style="color:var(--ice)">→ OPEN YOUR SHEET</a>
     </div>
@@ -785,7 +789,7 @@ function runEpley(){const w=parseFloat(document.getElementById('epW').value),r=p
 function runRelStr(){const bw=parseFloat(document.getElementById('relBW').value),lft=document.getElementById('relLift').value,rm=aRM(),v=rm[lft];if(!bw||!v){document.getElementById('relResult').innerHTML='';return;}const ratio=(v/bw);const tgts={sq:2.0,bn:1.5,dl:2.5};const tgt=tgts[lft],pct=Math.min(150,Math.round(ratio/tgt*100));const col=pct>=100?'var(--ok)':pct>=80?'var(--gold)':'var(--fire)';const needed=Math.max(0,Math.ceil(tgt*bw-v));document.getElementById('relResult').innerHTML=`<div style="font-family:\'Barlow Condensed\',sans-serif;font-size:38px;font-weight:800;color:${col};letter-spacing:1px">${ratio.toFixed(2)}×</div><div style="font-family:\'Share Tech Mono\',monospace;font-size:9px;color:var(--dim);margin-top:3px">Target: ${tgt}× BW · ${pct}% of benchmark · ${needed?'+'+needed+'lb needed to hit combat standard':'✓ COMBAT BENCHMARK MET'}</div><div style="height:3px;background:var(--s3);border-radius:2px;margin-top:7px;overflow:hidden"><div style="height:100%;width:${Math.min(100,pct)}%;background:${col};border-radius:2px"></div></div><div style="font-family:\'Share Tech Mono\',monospace;font-size:8px;color:var(--dim);margin-top:5px">Sources: Lum et al. (2022) PMC9323058 · Williams et al. (2024) JSAMS · Sweet Science of Fighting</div>`;}
 
 // SETTINGS
-function syncSettings(){const su=getSheetsUrl();if(su)document.getElementById('sheetsUrl').value=su;document.getElementById('set-sq').value=S.onerm.sq;document.getElementById('set-bn').value=S.onerm.bn;document.getElementById('set-dl').value=S.onerm.dl;document.getElementById('set-day').value=S.programDay||1;if(S.startDate)document.getElementById('set-start').value=S.startDate;if(S.athlete.bw)document.getElementById('set-bw').value=S.athlete.bw;if(S.athlete.bf)document.getElementById('set-bf').value=S.athlete.bf;document.getElementById('set-sex').value=S.athlete.sex||'M';if(S.athlete.age)document.getElementById('set-age').value=S.athlete.age;if(S.overrides.sq)document.getElementById('set-osq').value=S.overrides.sq;if(S.overrides.bn)document.getElementById('set-obn').value=S.overrides.bn;if(S.overrides.dl)document.getElementById('set-odl').value=S.overrides.dl;}
+function syncSettings(){const tok=getStoredToken();document.getElementById('oauth-disconnected').style.display=tok?'none':'';document.getElementById('oauth-connected').style.display=tok?'':'none';document.getElementById('set-sq').value=S.onerm.sq;document.getElementById('set-bn').value=S.onerm.bn;document.getElementById('set-dl').value=S.onerm.dl;document.getElementById('set-day').value=S.programDay||1;if(S.startDate)document.getElementById('set-start').value=S.startDate;if(S.athlete.bw)document.getElementById('set-bw').value=S.athlete.bw;if(S.athlete.bf)document.getElementById('set-bf').value=S.athlete.bf;document.getElementById('set-sex').value=S.athlete.sex||'M';if(S.athlete.age)document.getElementById('set-age').value=S.athlete.age;if(S.overrides.sq)document.getElementById('set-osq').value=S.overrides.sq;if(S.overrides.bn)document.getElementById('set-obn').value=S.overrides.bn;if(S.overrides.dl)document.getElementById('set-odl').value=S.overrides.dl;}
 function saveSettings(){S.onerm.sq=parseFloat(document.getElementById('set-sq').value)||320;S.onerm.bn=parseFloat(document.getElementById('set-bn').value)||260;S.onerm.dl=parseFloat(document.getElementById('set-dl').value)||420;saveS();toast('1RMs SAVED ✓');}
 function saveProgramStatus(){S.programDay=parseInt(document.getElementById('set-day').value)||1;const sd=document.getElementById('set-start').value;if(sd)S.startDate=sd;saveS();toast('STATUS SAVED ✓');renderToday();}
 function saveAthlete(){S.athlete.bw=parseFloat(document.getElementById('set-bw').value)||175;S.athlete.bf=parseFloat(document.getElementById('set-bf').value)||11.5;S.athlete.sex=document.getElementById('set-sex').value;S.athlete.age=parseInt(document.getElementById('set-age').value)||31;saveS();toast('ATHLETE INFO SAVED ✓');}
@@ -797,179 +801,179 @@ function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t
 // INIT
 const sc=document.createElement('script');sc.src='https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';sc.onload=()=>{renderToday();renderDashboard();renderNutrition();};document.head.appendChild(sc);
 window.addEventListener('load',()=>{if(typeof Chart!=='undefined'){renderToday();renderDashboard();renderNutrition();}});
+if(window.location.search.includes('code=')){handleOAuthCallback().then(ok=>{if(ok){syncSettings();loadSessionsFromSheets();}});}else{loadSessionsFromSheets();}
 document.querySelectorAll('.nb')[3].addEventListener('click',()=>setTimeout(initLog,50));
 
 // ============================================================
-// GOOGLE SHEETS SYNC
+// GOOGLE SHEETS SYNC — GCP OAuth + Sheets API v4
 // ============================================================
-const SHEETS_KEY = 'blkphx_sheets_url';
+const GOOGLE_CLIENT_ID = '188651628193-sl2m4jl10bdmdm9ctm7tgvsvidk5niab.apps.googleusercontent.com';
+const OAUTH_WORKER_URL = 'https://blkphx-oauth.fpalvarez23.workers.dev';
+const SHEETS_ID        = '1Ehktj8QPGImsijTPnf5piutbd6G_B-PzaEB2wI1AwQg';
+const GTOKEN_KEY       = 'blkphx_gtoken';
 
-function getSheetsUrl() {
-  return localStorage.getItem(SHEETS_KEY) || '';
+// — PKCE utilities —
+function _b64url(buf){return btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');}
+function _genVerifier(){const a=new Uint8Array(32);crypto.getRandomValues(a);return _b64url(a.buffer);}
+async function _genChallenge(v){return _b64url(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(v)));}
+
+// — Token storage —
+function getStoredToken(){try{return JSON.parse(localStorage.getItem(GTOKEN_KEY));}catch{return null;}}
+async function getValidToken(){
+  const tok=getStoredToken();
+  if(!tok)return null;
+  if(Date.now()<tok.expires_at-60000)return tok.access_token;
+  return _doRefresh(tok.refresh_token);
+}
+async function _doRefresh(rt){
+  try{
+    const r=await fetch(OAUTH_WORKER_URL+'/refresh',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({refresh_token:rt})});
+    const d=await r.json();
+    if(!d.access_token){localStorage.removeItem(GTOKEN_KEY);return null;}
+    const tok={access_token:d.access_token,refresh_token:d.refresh_token||rt,expires_at:Date.now()+d.expires_in*1000};
+    localStorage.setItem(GTOKEN_KEY,JSON.stringify(tok));
+    return tok.access_token;
+  }catch{return null;}
 }
 
-async function syncSessionToSheets(session) {
-  const url = getSheetsUrl();
-  if (!url) return { success: false, reason: 'no_url' };
-  try {
-    const rm = aRM();
-    const bw = S.athlete.bw || 175;
-    const bwKg = bw * 0.4536;
-    const totKg = (rm.sq + rm.bn + rm.dl) * 0.4536;
-    const sex = S.athlete.sex || 'M';
-    let c;
-    if(sex==='M'){const[a,b,cc,d,e,f]=[-216.0475144,16.2606339,-0.002388645,-0.00113732,7.01863e-6,-1.291e-8];c=500/(a+b*bwKg+cc*bwKg**2+d*bwKg**3+e*bwKg**4+f*bwKg**5);}
-    else{const[a,b,cc,d,e,f]=[594.31748,-27.23843,0.82112,-0.009307,4.732e-5,-9.054e-8];c=500/(a+b*bwKg+cc*bwKg**2+d*bwKg**3+e*bwKg**4+f*bwKg**5);}
-    const wilks = Math.round(totKg * c * 10) / 10;
+// — OAuth flow —
+async function connectGoogle(){
+  const v=_genVerifier(),ch=await _genChallenge(v);
+  sessionStorage.setItem('pkce_v',v);
+  const p=new URLSearchParams({client_id:GOOGLE_CLIENT_ID,redirect_uri:window.location.origin+'/oauth-callback',response_type:'code',scope:'https://www.googleapis.com/auth/spreadsheets',code_challenge:ch,code_challenge_method:'S256',access_type:'offline',prompt:'consent'});
+  window.location.href='https://accounts.google.com/o/oauth2/v2/auth?'+p;
+}
+async function handleOAuthCallback(){
+  const params=new URLSearchParams(window.location.search);
+  const code=params.get('code');
+  if(!code)return false;
+  window.history.replaceState({},'',window.location.pathname);
+  const v=sessionStorage.getItem('pkce_v');sessionStorage.removeItem('pkce_v');
+  if(!v){toast('OAUTH ERROR — TRY AGAIN');return false;}
+  try{
+    const r=await fetch(OAUTH_WORKER_URL+'/token',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code,code_verifier:v,redirect_uri:window.location.origin+'/oauth-callback'})});
+    const d=await r.json();
+    if(!d.access_token){toast('AUTH FAILED — CHECK WORKER URL');return false;}
+    localStorage.setItem(GTOKEN_KEY,JSON.stringify({access_token:d.access_token,refresh_token:d.refresh_token,expires_at:Date.now()+d.expires_in*1000}));
+    toast('✓ GOOGLE CONNECTED');return true;
+  }catch(e){toast('AUTH ERROR: '+e.message);return false;}
+}
+function disconnectGoogle(){localStorage.removeItem(GTOKEN_KEY);toast('GOOGLE DISCONNECTED');syncSettings();}
 
-    // Figure out block/week from program day
-    const cd = curDay();
-    const block = cd<=28?'ACC':cd<=56?'INT':cd<=84?'INTEN':'TAPER';
-    const week = Math.ceil(cd/7);
-
-    // Best estimated 1RMs from this session
-    let sq1rm = '', bn1rm = '', dl1rm = '';
-    (session.lifts||[]).forEach(l => {
-      const n = l.name.toLowerCase();
-      if(n.includes('squat') && l.estimated1rm) sq1rm = l.estimated1rm;
-      if(n.includes('bench') && !n.includes('row') && l.estimated1rm) bn1rm = l.estimated1rm;
-      if(n.includes('deadlift') && l.estimated1rm) dl1rm = l.estimated1rm;
-    });
-
-    const payload = {
-      type: 'session',
-      session: {
-        ...session,
-        programDay: cd,
-        block,
-        week,
-        bf: S.athlete.bf || '',
-        squat1rm: sq1rm,
-        bench1rm: bn1rm,
-        deadlift1rm: dl1rm,
-        total: rm.sq + rm.bn + rm.dl,
-        wilks
-      }
-    };
-
-    const resp = await fetch(url, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-      headers: { 'Content-Type': 'text/plain' } // Apps Script needs text/plain to avoid CORS preflight
-    });
-    const result = await resp.json();
-    return result;
-  } catch(err) {
-    console.error('Sheets sync error:', err);
-    return { success: false, error: err.message };
-  }
+// — Sheets helpers —
+async function _sheetsAppend(range,values){
+  const tok=await getValidToken();if(!tok)return false;
+  const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEETS_ID}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,{method:'POST',headers:{Authorization:`Bearer ${tok}`,'Content-Type':'application/json'},body:JSON.stringify({values})});
+  return r.ok;
 }
 
-async function syncStatsToSheets() {
-  const url = getSheetsUrl();
-  if (!url) return;
-  const rm = aRM();
-  const bw = S.athlete.bw || 175;
-  const bwKg = bw * 0.4536;
-  const totKg = (rm.sq + rm.bn + rm.dl) * 0.4536;
-  const sex = S.athlete.sex || 'M';
-  let c;
+async function setupSheetTabs(){
+  const tok=await getValidToken();if(!tok){toast('CONNECT GOOGLE FIRST');return;}
+  try{
+    const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEETS_ID}`,{headers:{Authorization:`Bearer ${tok}`}});
+    const ss=await r.json();
+    const existing=(ss.sheets||[]).map(s=>s.properties.title);
+    const needed=['Sessions','Lifts','Stats','_data'];
+    const missing=needed.filter(t=>!existing.includes(t));
+    if(missing.length){
+      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEETS_ID}:batchUpdate`,{method:'POST',headers:{Authorization:`Bearer ${tok}`,'Content-Type':'application/json'},body:JSON.stringify({requests:missing.map(title=>({addSheet:{properties:{title}}}))})});
+    }
+    if(missing.includes('Sessions'))await _sheetsAppend('Sessions',[['ID','Date','Type','Bodyweight(lb)','BF%','Energy','Run Dist(mi)','Run Time(min)','Run Pace(min/mi)','PH3 Day','Block','Week','Notes','Squat 1RM Est.','Bench 1RM Est.','Deadlift 1RM Est.','Total','Wilks']]);
+    if(missing.includes('Lifts'))   await _sheetsAppend('Lifts',   [['Session ID','Date','Exercise','Type','Set','Weight(lb)','Reps','RIR','Est. 1RM']]);
+    if(missing.includes('Stats'))   await _sheetsAppend('Stats',   [['Timestamp','Squat 1RM','Bench 1RM','Deadlift 1RM','Total','Bodyweight','Wilks','DL/BW','SQ/BW','BN/BW']]);
+    toast(missing.length?'✓ SHEETS SETUP COMPLETE':'✓ ALL TABS ALREADY EXIST');
+  }catch(e){toast('SETUP FAILED: '+e.message);}
+}
+
+// — Wilks helper —
+function _wilks(rm,bw,sex){
+  const bwKg=bw*0.4536,totKg=(rm.sq+rm.bn+rm.dl)*0.4536;let c;
   if(sex==='M'){const[a,b,cc,d,e,f]=[-216.0475144,16.2606339,-0.002388645,-0.00113732,7.01863e-6,-1.291e-8];c=500/(a+b*bwKg+cc*bwKg**2+d*bwKg**3+e*bwKg**4+f*bwKg**5);}
   else{const[a,b,cc,d,e,f]=[594.31748,-27.23843,0.82112,-0.009307,4.732e-5,-9.054e-8];c=500/(a+b*bwKg+cc*bwKg**2+d*bwKg**3+e*bwKg**4+f*bwKg**5);}
-  try {
-    await fetch(url, {
-      method: 'POST',
-      body: JSON.stringify({
-        type: 'stats',
-        stats: { sq: rm.sq, bn: rm.bn, dl: rm.dl, total: rm.sq+rm.bn+rm.dl, bw, wilks: Math.round(totKg*c*10)/10 }
-      }),
-      headers: { 'Content-Type': 'text/plain' }
-    });
-  } catch(e) { console.error('Stats sync err:', e); }
+  return Math.round(totKg*c*10)/10;
 }
 
-function saveSheetsUrl(url) {
-  localStorage.setItem(SHEETS_KEY, url);
-  toast('SHEETS URL SAVED ✓');
+// — Session sync —
+async function syncSessionToSheets(session){
+  const tok=await getValidToken();if(!tok)return{success:false,reason:'not_connected'};
+  try{
+    const rm=aRM(),bw=S.athlete.bw||175,sex=S.athlete.sex||'M';
+    const wilks=_wilks(rm,bw,sex);
+    const cd=curDay(),block=cd<=28?'ACC':cd<=56?'INT':cd<=84?'INTEN':'TAPER',week=Math.ceil(cd/7);
+    let sq1rm='',bn1rm='',dl1rm='';
+    (session.lifts||[]).forEach(l=>{const n=l.name.toLowerCase();if(n.includes('squat')&&l.estimated1rm)sq1rm=l.estimated1rm;if(n.includes('bench')&&!n.includes('row')&&l.estimated1rm)bn1rm=l.estimated1rm;if(n.includes('deadlift')&&l.estimated1rm)dl1rm=l.estimated1rm;});
+    const runPace=session.runDist&&session.runTime?+(session.runTime/session.runDist).toFixed(2):'';
+    await _sheetsAppend('Sessions',[[session.id,session.date,session.type,session.bw||'',S.athlete.bf||'',session.energy||'',session.runDist||'',session.runTime||'',runPace,cd,block,week,session.notes||'',sq1rm,bn1rm,dl1rm,rm.sq+rm.bn+rm.dl,wilks]]);
+    const liftRows=[];
+    (session.lifts||[]).forEach(lift=>lift.sets.forEach((s,i)=>liftRows.push([session.id,session.date,lift.name,lift.type,i+1,s.weight,s.reps,s.rir??'',lift.estimated1rm])));
+    if(liftRows.length)await _sheetsAppend('Lifts',liftRows);
+    await _sheetsAppend('_data',[[session.id,JSON.stringify(session)]]);
+    return{success:true};
+  }catch(err){console.error('Sheets sync error:',err);return{success:false,error:err.message};}
 }
 
-function testSheetsConnection() {
-  const url = getSheetsUrl();
-  if (!url) { toast('ENTER YOUR WEB APP URL FIRST'); return; }
-  const btn = document.getElementById('testSheetsBtn');
-  btn.textContent = 'TESTING...';
-  fetch(url + '?action=ping')
-    .then(r => r.json())
-    .then(d => { btn.textContent = 'TEST CONNECTION'; toast('✓ SHEETS CONNECTED'); })
-    .catch(e => { btn.textContent = 'TEST CONNECTION'; toast('✗ CONNECTION FAILED — CHECK URL'); });
+async function syncStatsToSheets(){
+  const tok=await getValidToken();if(!tok){toast('CONNECT GOOGLE FIRST');return;}
+  const rm=aRM(),bw=S.athlete.bw||175,sex=S.athlete.sex||'M';
+  try{
+    await _sheetsAppend('Stats',[[new Date().toISOString(),rm.sq,rm.bn,rm.dl,rm.sq+rm.bn+rm.dl,bw,_wilks(rm,bw,sex),+(rm.dl/bw).toFixed(2),+(rm.sq/bw).toFixed(2),+(rm.bn/bw).toFixed(2)]]);
+    toast('✓ 1RMs PUSHED TO SHEETS');
+  }catch(e){toast('PUSH FAILED — CHECK CONNECTION');}
 }
 
-// Patch saveWorkout to also sync
-const _origSaveWorkout = saveWorkout;
-// Override sync into the save flow — called after session is pushed to S.sessions
-function saveWorkoutWithSync() {
-  // We need to intercept after the session is built
-  const date = document.getElementById('logDate').value;
-  if (!date) { toast('SELECT A DATE'); return; }
-  const lifts = [];
-  document.querySelectorAll('.lc').forEach(lc => {
-    const name = lc.querySelector('.lc-nm').value.trim(); if (!name) return;
-    const type = lc.querySelector('.lc-tp').value;
-    const sets = [];
-    lc.querySelectorAll('.set-rows>.sr').forEach(row => {
-      const ins = row.querySelectorAll('input');
-      const weight = parseFloat(ins[0].value), reps2 = parseInt(ins[1].value), rir2 = ins[2].value !== '' ? parseInt(ins[2].value) : null;
-      if (weight && reps2) sets.push({ weight, reps: reps2, rir: rir2 });
-    });
-    if (sets.length) {
-      const best = sets.reduce((b,s) => s.weight > (b.weight||0) ? s : b, {});
-      const e1rm = best.reps === 1 ? best.weight : Math.round(best.weight * (1 + best.reps / 30));
-      lifts.push({ name, type, sets, estimated1rm: e1rm });
-    }
-  });
-  const sess = {
-    id: Date.now(), date,
-    type: document.getElementById('logType').value,
-    bw: parseFloat(document.getElementById('logBW').value) || null,
-    energy: parseInt(document.getElementById('logEnergy').value) || null,
-    runDist: parseFloat(document.getElementById('logRunDist').value) || null,
-    runTime: parseFloat(document.getElementById('logRunTime').value) || null,
-    notes: document.getElementById('logNotes').value.trim(),
-    lifts
-  };
-  S.sessions.push(sess);
-  lifts.forEach(l => {
-    const n = l.name.toLowerCase();
-    if(n.includes('squat') && !n.includes('goblet') && l.estimated1rm > S.onerm.sq) { S.onerm.sq = l.estimated1rm; toast('🏆 NEW SQUAT PR: ' + l.estimated1rm + 'LB'); }
-    if(n.includes('bench') && !n.includes('row') && l.estimated1rm > S.onerm.bn) { S.onerm.bn = l.estimated1rm; toast('🏆 NEW BENCH PR: ' + l.estimated1rm + 'LB'); }
-    if(n.includes('deadlift') && l.estimated1rm > S.onerm.dl) { S.onerm.dl = l.estimated1rm; toast('🏆 NEW DEADLIFT PR: ' + l.estimated1rm + 'LB'); }
-  });
-  saveS();
+async function loadSessionsFromSheets(){
+  const tok=await getValidToken();if(!tok)return;
+  try{
+    const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEETS_ID}/values/_data`,{headers:{Authorization:`Bearer ${tok}`}});
+    const d=await r.json();
+    if(!d.values||!d.values.length)return;
+    const sheetSessions=d.values.map(row=>{try{return JSON.parse(row[1]);}catch{return null;}}).filter(Boolean);
+    if(!sheetSessions.length)return;
+    const sheetIds=new Set(sheetSessions.map(s=>s.id));
+    const localOnly=(S.sessions||[]).filter(s=>!sheetIds.has(s.id));
+    S.sessions=[...sheetSessions,...localOnly].sort((a,b)=>new Date(a.date)-new Date(b.date));
+    saveS();
+  }catch(e){console.error('loadSessionsFromSheets:',e);}
+}
 
-  // Sync to Sheets
-  if (getSheetsUrl()) {
-    const syncIndicator = document.createElement('div');
-    syncIndicator.style.cssText = 'position:fixed;top:60px;right:16px;background:var(--s2);border:1px solid var(--gold);color:var(--gold);font-family:\'Share Tech Mono\',monospace;font-size:10px;padding:6px 12px;border-radius:3px;z-index:500;letter-spacing:1px';
-    syncIndicator.textContent = '⟳ SYNCING TO SHEETS...';
-    document.body.appendChild(syncIndicator);
-    syncSessionToSheets(sess).then(result => {
-      syncIndicator.textContent = result.success ? '✓ SYNCED TO SHEETS' : '✗ SYNC FAILED';
-      syncIndicator.style.borderColor = result.success ? 'var(--ok)' : 'var(--err)';
-      syncIndicator.style.color = result.success ? 'var(--ok)' : 'var(--err)';
-      setTimeout(() => syncIndicator.remove(), 3000);
-    });
+async function bulkSyncToSheets(){
+  const tok=await getValidToken();if(!tok){toast('CONNECT GOOGLE FIRST');return;}
+  const sessions=S.sessions||[];if(!sessions.length){toast('NO SESSIONS TO SYNC');return;}
+  const btn=document.getElementById('bulkSyncBtn');btn.disabled=true;
+  let ok=0,fail=0;
+  for(let i=0;i<sessions.length;i++){
+    btn.textContent=`SYNCING ${i+1}/${sessions.length}...`;
+    const result=await syncSessionToSheets(sessions[i]);
+    if(result&&result.success)ok++;else fail++;
   }
+  btn.disabled=false;btn.textContent='BULK SYNC ALL SESSIONS';
+  toast(`SYNC COMPLETE: ${ok} OK${fail?`, ${fail} FAILED`:''}`);}
 
-  toast('SESSION SAVED ✓');
-  document.getElementById('liftEntries').innerHTML = '';
-  ['logNotes','logBW','logEnergy','logRunDist','logRunTime'].forEach(id => document.getElementById(id).value = '');
-  liftCount = 0;
-  setTimeout(() => document.querySelectorAll('.nb')[0].click(), 900);
+// — Save workout with sync —
+function saveWorkoutWithSync(){
+  const date=document.getElementById('logDate').value;if(!date){toast('SELECT A DATE');return;}
+  const lifts=[];
+  document.querySelectorAll('.lc').forEach(lc=>{
+    const name=lc.querySelector('.lc-nm').value.trim();if(!name)return;
+    const type=lc.querySelector('.lc-tp').value,sets=[];
+    lc.querySelectorAll('.set-rows>.sr').forEach(row=>{
+      const ins=row.querySelectorAll('input');
+      const weight=parseFloat(ins[0].value),reps2=parseInt(ins[1].value),rir2=ins[2].value!==''?parseInt(ins[2].value):null;
+      if(weight&&reps2)sets.push({weight,reps:reps2,rir:rir2});
+    });
+    if(sets.length){const best=sets.reduce((b,s)=>s.weight>(b.weight||0)?s:b,{});const e1rm=best.reps===1?best.weight:Math.round(best.weight*(1+best.reps/30));lifts.push({name,type,sets,estimated1rm:e1rm});}
+  });
+  const sess={id:Date.now(),date,type:document.getElementById('logType').value,bw:parseFloat(document.getElementById('logBW').value)||null,energy:parseInt(document.getElementById('logEnergy').value)||null,runDist:parseFloat(document.getElementById('logRunDist').value)||null,runTime:parseFloat(document.getElementById('logRunTime').value)||null,notes:document.getElementById('logNotes').value.trim(),lifts};
+  S.sessions.push(sess);
+  lifts.forEach(l=>{const n=l.name.toLowerCase();if(n.includes('squat')&&!n.includes('goblet')&&l.estimated1rm>S.onerm.sq){S.onerm.sq=l.estimated1rm;toast('🏆 NEW SQUAT PR: '+l.estimated1rm+'LB');}if(n.includes('bench')&&!n.includes('row')&&l.estimated1rm>S.onerm.bn){S.onerm.bn=l.estimated1rm;toast('🏆 NEW BENCH PR: '+l.estimated1rm+'LB');}if(n.includes('deadlift')&&l.estimated1rm>S.onerm.dl){S.onerm.dl=l.estimated1rm;toast('🏆 NEW DEADLIFT PR: '+l.estimated1rm+'LB');}});
+  saveS();
+  if(getStoredToken()){
+    const si=document.createElement('div');si.style.cssText='position:fixed;top:60px;right:16px;background:var(--s2);border:1px solid var(--gold);color:var(--gold);font-family:\'Share Tech Mono\',monospace;font-size:10px;padding:6px 12px;border-radius:3px;z-index:500;letter-spacing:1px';si.textContent='⟳ SYNCING TO SHEETS...';document.body.appendChild(si);
+    syncSessionToSheets(sess).then(result=>{si.textContent=result.success?'✓ SYNCED TO SHEETS':'✗ SYNC FAILED';si.style.borderColor=result.success?'var(--ok)':'var(--err)';si.style.color=result.success?'var(--ok)':'var(--err)';setTimeout(()=>si.remove(),3000);});
+  }
+  toast('SESSION SAVED ✓');document.getElementById('liftEntries').innerHTML='';['logNotes','logBW','logEnergy','logRunDist','logRunTime'].forEach(id=>document.getElementById(id).value='');liftCount=0;setTimeout(()=>document.querySelectorAll('.nb')[0].click(),900);
 }
-
-
-// Override saveWorkout with sync version
-window.saveWorkout = saveWorkoutWithSync;
+window.saveWorkout=saveWorkoutWithSync;
 </script>
 <script>
   if ('serviceWorker' in navigator) {
